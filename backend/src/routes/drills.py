@@ -12,7 +12,10 @@ router = APIRouter()
 def listing(db=Depends(get_db), user=Depends(current_user)): return list_drills(db)
 @router.post('/drills', status_code=202)
 def create(data: DrillInput, db=Depends(get_db), user=Depends(writable)):
-    obj = create_drill(db, data); audit(db, user, f'drill:enqueue:{obj.id}'); db.commit()
+    # create_drill holds the configuration guard across its commit, so the
+    # frozen snapshot spans audit + enqueue as one unit.
+    obj = create_drill(db, data)
+    audit(db, user, f'drill:enqueue:{obj.id}'); db.commit()
     # DB is the durable queue; worker claims queued rows transactionally.
     return record(obj)
 @router.get('/drills/{drill_id}')
